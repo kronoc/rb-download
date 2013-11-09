@@ -4,11 +4,13 @@ rb-download
 Fork of rb-download from http://redbutton.sourceforge.net/
 
 
-==Building==
+Building
+--------
 
 Run make. You will need gcc and libz. It should "just work".
 
-==Use==
+Use
+--------
 
 This fork simple downloads the carousel and exits after 3 mins of no new modules.
 
@@ -23,6 +25,7 @@ ABC1:226500000:INVERSION_AUTO:BANDWIDTH_7_MHZ:FEC_3_4:FEC_1_2:QAM_64:TRANSMISSIO
 The last field (737) is the service id to give rb download, it should tune and download the data. If you use the 'any' option, it should work with the first it finds.
 
 e.g. 
+---------
 
 ```
 mkdir downloaded
