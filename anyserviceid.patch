@@ -1,0 +1,89 @@
+Index: rb-download.c
+===================================================================
+--- rb-download.c	(revision 545)
++++ rb-download.c	(working copy)
+@@ -183,8 +183,19 @@
+ 		list_channels(adapter, demux, timeout);
+ 	}
+ 	else if(argc - optind == 1)
+-	{
+-		service_id = strtoul(argv[optind], NULL, 0);
++	{ 
++		if (strncmp(argv[optind], "any", 3) == 0 || strncmp(argv[optind], "ANY", 3) == 0)
++    {
++      service_id = get_first_service_id(adapter, demux, timeout);
++      if (service_id == 0 && strlen(argv[optind]) > 4)//is in for any:default
++        service_id = strtoul(&argv[optind][4], NULL, 0);
++      else if (service_id > 0)
++        verbose("got serviceid from already tuned channel");
++      else
++        return EXIT_FAILURE;
++    }
++    else
++      service_id = strtoul(argv[optind], NULL, 0);
+ 		start_listener(&listen_addr, adapter, frontend, demux, dvr, timeout, service_id, carousel_id);
+ 	}
+ 	else
+@@ -249,6 +260,6 @@
+ 			"[-f <channels_file>] "
+ 			"[-l <listen_addr>] "
+ 			"[-c carousel_id] "
+-			"[<service_id>]", prog_name);
++			"[<service_id>|any[:default_service_id]]", prog_name);
+ }
+ 
+Index: list.c
+===================================================================
+--- list.c	(revision 545)
++++ list.c	(working copy)
+@@ -103,3 +103,38 @@
+ 	return;
+ }
+ 
++uint16_t
++get_first_service_id(unsigned int adapter, unsigned int demux, unsigned int timeout)
++{
++	char demux_dev[PATH_MAX];
++	unsigned char sdt[MAX_TABLE_LEN];
++	uint16_t size;
++	uint16_t offset;
++	uint16_t service_id;
++	uint8_t sn, lsn;
++  
++  snprintf(demux_dev, sizeof(demux_dev), DEMUX_DEVICE, adapter, demux);
++
++	/* grab the Service Description Table */
++	for(sn=0, lsn=0; sn<=lsn; sn++)
++	{
++		if(!read_sdt(demux_dev, timeout, sdt, sn))
++			error("Unable to read SDT");
++		/* 12 bit section_length field */
++		size = 3 + (((sdt[1] & 0x0f) << 8) + sdt[2]);
++		/* last_section_number */
++		lsn = sdt[7];
++		/* loop through the services */
++		offset = 11;
++		/* -4 for the CRC at the end */
++		while(offset < (size - 4))
++		{
++			service_id = (sdt[offset] << 8) + sdt[offset+1];
++      if (service_id > 0)
++        return service_id;
++    }
++  }
++  
++  return 0;
++}
++
+Index: list.h
+===================================================================
+--- list.h	(revision 545)
++++ list.h	(working copy)
+@@ -24,6 +24,7 @@
+ #define __LIST_H__
+ 
+ void list_channels(unsigned int, unsigned int, unsigned int);
++uint16_t get_first_service_id(unsigned int, unsigned int, unsigned int);
+ 
+ #endif	/* __LIST_H__ */
+ 

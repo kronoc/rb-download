@@ -1,0 +1,91 @@
+Index: biop.c
+===================================================================
+--- biop.c	(revision 545)
++++ biop.c	(working copy)
+@@ -92,7 +92,7 @@
+ 		vhexdump(service_context.data, service_context.size);
+ 		subhdr += biop_sequence(data->byte_order, subhdr, &body);
+ 		vverbose("messageBody: %u bytes", body.size);
+-		/* decode the message body, based on the objectKind field */
++    /* decode the message body, based on the objectKind field */
+ 		if(strcmp((char *) kind.data, BIOP_DIR) == 0)
+ 		{
+ 			/* a directory */
+@@ -180,7 +180,7 @@
+ 		/* only expecting 1 name, so just use the last one */
+ 		for(j=0; j<nnames; j++)
+ 		{
+-			data += biop_sequence255(data, &name);
++      data += biop_sequence255(data, &name);
+ 			vverbose("  name %u: '%.*s'", j, name.size, name.data);
+ 			data += biop_sequence255(data, &kind);
+ 			vverbose("  kind %u: '%.*s'", j, kind.size, kind.data);
+@@ -193,7 +193,13 @@
+ 		vverbose(" objectRef:");
+ 		data += process_iop_ior(byte_order, data, &ior);
+ 		/* make sure we are downloading the PID with this file on */
+-		pid = stream2pid(&car->assoc, ior.association_tag);
++    //work around abc australia oddity where it otherwise gets the video pid!
++    if (stream2type(&car->assoc, ior.association_tag) == 0x0b)//all is normal
++      pid = stream2pid(&car->assoc, ior.association_tag);
++    else {
++      vverbose("getting pid by type!");
++      pid = streamType2pid(&car->assoc, 0x0b);//get the correct pid (if anyone can fix this abc oddity in a better way please do!)
++    }
+ 		/*
+ 		 * is the PID on the MUX we are currently tuned to
+ 		 * some BBC apps have links to files on different MUXes
+@@ -226,7 +232,13 @@
+ 
+ 	data += process_iop_ior(BIOP_BIGENDIAN, data, &ior);
+ 
+-	elementary_pid = stream2pid(assoc, ior.association_tag);
++	//work around abc australia oddity where it otherwise gets the video pid!
++  if (stream2type(assoc, ior.association_tag) == 0x0b)//all is normal
++    elementary_pid = stream2pid(assoc, ior.association_tag);
++  else {
++    vverbose("getting pid by type!");
++    elementary_pid = streamType2pid(assoc, 0x0b);//get the correct pid (if anyone can fix this abc oddity in a better way please do!)
++  }
+ 
+ 	make_service_root(service_id, BIOP_SERVICEGATEWAY, elementary_pid, ior.carousel_id, ior.module_id, (char *) ior.key.data, ior.key.size);
+ 
+Index: assoc.c
+===================================================================
+--- assoc.c	(revision 545)
++++ assoc.c	(working copy)
+@@ -72,6 +72,22 @@
+ 	return 0;
+ }
+ 
++uint16_t
++streamType2pid(struct assoc *a, uint8_t stream_type)
++{
++	unsigned int i;
++
++	for(i=0; i<a->nassocs; i++)
++	{
++		if(a->types[i] == stream_type)
++			return a->pids[i];
++	}
++
++	error("Unknown PID for stream type %u", stream_type);
++
++	return 0;
++}
++
+ uint8_t
+ stream2type(struct assoc *a, uint16_t stream_id)
+ {
+Index: assoc.h
+===================================================================
+--- assoc.h	(revision 545)
++++ assoc.h	(working copy)
+@@ -40,6 +40,7 @@
+ 
+ uint16_t stream2pid(struct assoc *, uint16_t);
+ uint8_t stream2type(struct assoc *, uint16_t);
++uint16_t streamType2pid(struct assoc *a, uint8_t stream_type);
+ 
+ #endif	/* __ASSOC_H__ */
+ 
