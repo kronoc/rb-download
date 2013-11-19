@@ -30,6 +30,7 @@ TARDIR=${basename ${PWD}}
 all: rb-download
 
 rb-download:	${ROBJS}
+	${CC} ${ROBJS} ${LDFLAGS} -o rb-download
 
 install:	rb-download
 	install -d ${DESTDIR}/bin
